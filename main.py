@@ -1,11 +1,12 @@
 import pandas as pd
 import os
 import matplotlib.pyplot as plt
+from pmdarima import auto_arima
 from statsmodels.tsa.seasonal import STL, seasonal_decompose
 
 dataset_path = "dataset/openpowerlifting-2024-01-06-4c732975.csv"
 
-dataset = pd.read_csv(dataset_path, low_memory=False)
+dataset = pd.read_csv(dataset_path, low_memory=True)
 
 dataset['Date'] = pd.to_datetime(dataset['Date'], errors='coerce')
 df = dataset.dropna(subset=['Date'])
@@ -161,4 +162,39 @@ plt.title("Recorde de Total (Kg) por Mês")
 plt.xlabel("Ano")
 plt.ylabel("Maior Total (Kg)")
 plt.grid(True)
+plt.show()
+
+
+competitors_ts = competitors_per_month.asfreq('M')
+
+# Treinar o modelo SARIMA automaticamente
+model_comp = auto_arima(
+    competitors_ts,
+    seasonal=True,
+    m=12,
+    trace=False,
+    error_action="ignore",
+    suppress_warnings=True
+)
+
+# Previsão para os próximos 24 meses
+n_periods = 24
+forecast_comp = model_comp.predict(n_periods=n_periods)
+
+future_index = pd.date_range(
+    start=competitors_ts.index[-1] + pd.offsets.MonthBegin(),
+    periods=n_periods,
+    freq="M"
+)
+
+forecast_series_comp = pd.Series(forecast_comp, index=future_index)
+
+plt.figure(figsize=(14,6))
+plt.plot(competitors_ts, label="Histórico")
+plt.plot(forecast_series_comp, '--', label="Previsão")
+plt.title("Previsão - Número de Competidores por Mês (SARIMA)")
+plt.xlabel("Ano")
+plt.ylabel("Competidores")
+plt.grid(True)
+plt.legend()
 plt.show()
